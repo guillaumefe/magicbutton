@@ -1,0 +1,185 @@
+<script>
+    (function () {
+        class AutonomousPatchButton {
+            constructor() {
+                this.instructions = [];
+                this.createButton();
+            }
+
+            createButton() {
+                this.button = document.createElement("button");
+                this.button.textContent = "Appliquer Instructions Tetris";
+                this.styleButton(this.button);
+                this.button.addEventListener("click", () => this.showPopup());
+                document.body.appendChild(this.button);
+            }
+
+            styleButton(button) {
+                button.style.position = "fixed";
+                button.style.top = "10px";
+                button.style.left = "10px";
+                button.style.padding = "10px 20px";
+                button.style.backgroundColor = "#3b82f6";
+                button.style.color = "#ffffff";
+                button.style.border = "none";
+                button.style.borderRadius = "5px";
+                button.style.cursor = "pointer";
+                button.style.zIndex = 10000;
+            }
+
+            showPopup() {
+                this.popup = document.createElement("div");
+                this.stylePopup(this.popup);
+
+                const textArea = document.createElement("textarea");
+                textArea.placeholder = 'Collez vos instructions JSON ici...';
+                this.styleTextArea(textArea);
+
+                const loadButton = this.createButtonElement("Charger Instructions", "#3b82f6");
+                const applyButton = this.createButtonElement("Appliquer Patch", "#10b981", false);
+                const closeButton = this.createButtonElement("Fermer", "#ef4444");
+
+                this.checkboxContainer = document.createElement("div");
+                this.checkboxContainer.style.maxHeight = "200px";
+                this.checkboxContainer.style.overflowY = "auto";
+                this.checkboxContainer.style.display = "none";
+
+                this.popup.appendChild(textArea);
+                this.popup.appendChild(loadButton);
+                this.popup.appendChild(this.checkboxContainer);
+                this.popup.appendChild(applyButton);
+                this.popup.appendChild(closeButton);
+                document.body.appendChild(this.popup);
+
+                loadButton.addEventListener("click", () => {
+                    this.loadInstructions(textArea.value);
+                    applyButton.style.display = "block";
+                });
+
+                applyButton.addEventListener("click", () => this.applySelectedPatches());
+                closeButton.addEventListener("click", () => this.closePopup());
+            }
+
+            stylePopup(popup) {
+                popup.style.position = "fixed";
+                popup.style.top = "50%";
+                popup.style.left = "50%";
+                popup.style.transform = "translate(-50%, -50%)";
+                popup.style.backgroundColor = "#ffffff";
+                popup.style.border = "2px solid #3b82f6";
+                popup.style.padding = "20px";
+                popup.style.width = "80%";
+                popup.style.maxWidth = "500px";
+                popup.style.zIndex = 10001;
+            }
+
+            styleTextArea(textArea) {
+                textArea.style.width = "100%";
+                textArea.style.height = "150px";
+                textArea.style.marginBottom = "10px";
+                textArea.style.padding = "10px";
+            }
+
+            createButtonElement(text, backgroundColor, visible = true) {
+                const button = document.createElement("button");
+                button.textContent = text;
+                button.style.padding = "10px 20px";
+                button.style.backgroundColor = backgroundColor;
+                button.style.color = "#ffffff";
+                button.style.border = "none";
+                button.style.borderRadius = "5px";
+                button.style.cursor = "pointer";
+                button.style.marginBottom = "10px";
+                button.style.display = visible ? "block" : "none";
+                return button;
+            }
+
+            loadInstructions(instructionsText) {
+                try {
+                    this.instructions = JSON.parse(instructionsText);
+                    if (!Array.isArray(this.instructions)) throw new Error("Les instructions doivent être un tableau.");
+                    this.displayCheckboxes();
+                    alert("Instructions chargées avec succès.");
+                } catch (error) {
+                    console.error("Erreur JSON :", error.message);
+                    alert("Erreur de chargement des instructions JSON : Assurez-vous que le format est correct.\nDétail de l'erreur : " + error.message);
+                }
+            }
+
+            displayCheckboxes() {
+                this.checkboxContainer.innerHTML = "";
+                this.checkboxContainer.style.display = "block";
+
+                this.instructions.forEach((instruction, index) => {
+                    const checkboxItem = document.createElement("div");
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.value = index;
+                    const label = document.createElement("label");
+                    label.textContent = instruction.description || `Instruction ${index + 1}`;
+                    checkboxItem.appendChild(checkbox);
+                    checkboxItem.appendChild(label);
+                    this.checkboxContainer.appendChild(checkboxItem);
+                });
+            }
+
+            applySelectedPatches() {
+                const selectedIndexes = Array.from(this.checkboxContainer.querySelectorAll("input[type='checkbox']:checked")).map(input => parseInt(input.value));
+                const selectedInstructions = selectedIndexes.map(index => this.instructions[index]);
+
+                selectedInstructions.forEach(instruction => {
+                    const { target, newCode, type } = instruction;
+                    const element = document.querySelector(target);
+
+                    if (!element) {
+                        console.warn(`Élément avec le sélecteur "${target}" introuvable.`);
+                        return;
+                    }
+
+                    this.applyInstruction(element, newCode, type);
+                });
+
+                alert("Patch appliqué avec succès.");
+                this.removeButton();
+            }
+
+            applyInstruction(element, newCode, type) {
+                switch (type) {
+                    case 'innerHTML':
+                        element.innerHTML = newCode;
+                        break;
+                    case 'append':
+                        element.insertAdjacentHTML('beforeend', newCode);
+                        break;
+                    case 'style':
+                        const style = document.createElement('style');
+                        style.innerHTML = newCode;
+                        document.head.appendChild(style);
+                        break;
+                    case 'script':
+                        const script = document.createElement('script');
+                        script.textContent = newCode;
+                        document.body.appendChild(script);
+                        break;
+                    default:
+                        console.warn(`Type d'instruction "${type}" non pris en charge.`);
+                }
+            }
+
+            closePopup() {
+                if (this.popup) {
+                    document.body.removeChild(this.popup);
+                    this.popup = null;
+                }
+            }
+
+            removeButton() {
+                if (this.button) {
+                    this.button.remove();
+                }
+            }
+        }
+
+        new AutonomousPatchButton();
+    })();
+</script>

@@ -1,14 +1,18 @@
+
+
+
 <script>
     (function () {
         class AutonomousPatchButton {
             constructor() {
                 this.instructions = [];
+                this.originalStates = new Map();
                 this.createButton();
             }
 
             createButton() {
                 this.button = document.createElement("button");
-                this.button.textContent = "Appliquer Instructions Tetris";
+                this.button.textContent = "Appliquer Instructions";
                 this.styleButton(this.button);
                 this.button.addEventListener("click", () => this.showPopup());
                 document.body.appendChild(this.button);
@@ -116,7 +120,7 @@
                     checkbox.type = "checkbox";
                     checkbox.value = index;
                     const label = document.createElement("label");
-                    label.textContent = instruction.description || `Instruction ${index + 1}`;
+                    label.textContent = instruction.name || `Instruction ${index + 1}`;
                     checkboxItem.appendChild(checkbox);
                     checkboxItem.appendChild(label);
                     this.checkboxContainer.appendChild(checkboxItem);
@@ -124,10 +128,10 @@
             }
 
             applySelectedPatches() {
-                const selectedIndexes = Array.from(this.checkboxContainer.querySelectorAll("input[type='checkbox']:checked")).map(input => parseInt(input.value));
-                const selectedInstructions = selectedIndexes.map(index => this.instructions[index]);
-
-                selectedInstructions.forEach(instruction => {
+                const selectedCheckboxes = Array.from(this.checkboxContainer.querySelectorAll("input[type='checkbox']"));
+                selectedCheckboxes.forEach(checkbox => {
+                    const index = parseInt(checkbox.value);
+                    const instruction = this.instructions[index];
                     const { target, newCode, type } = instruction;
                     const element = document.querySelector(target);
 
@@ -136,11 +140,63 @@
                         return;
                     }
 
-                    this.applyInstruction(element, newCode, type);
+                    if (checkbox.checked) {
+                        if (!this.originalStates.has(index)) {
+                            this.saveOriginalState(index, element, type);
+                        }
+                        this.applyInstruction(element, newCode, type);
+                    } else {
+                        this.restoreOriginalState(index, element, type);
+                    }
                 });
 
-                alert("Patch appliqué avec succès.");
-                this.removeButton();
+                alert("Patch(s) appliqué(s) avec succès.");
+            }
+
+            saveOriginalState(index, element, type) {
+                let originalState;
+                switch (type) {
+                    case 'innerHTML':
+                        originalState = element.innerHTML;
+                        break;
+                    case 'append':
+                        originalState = element.innerHTML;
+                        break;
+                    case 'style':
+                        originalState = document.head.innerHTML;
+                        break;
+                    case 'script':
+                        originalState = null; // Scripts ajoutés, impossible de les retirer proprement
+                        break;
+                    default:
+                        originalState = null;
+                }
+                this.originalStates.set(index, originalState);
+            }
+
+            restoreOriginalState(index, element, type) {
+                if (!this.originalStates.has(index)) {
+                    console.warn(`Aucun état original sauvegardé pour l'instruction ${index + 1}.`);
+                    return;
+                }
+                const originalState = this.originalStates.get(index);
+                switch (type) {
+                    case 'innerHTML':
+                        element.innerHTML = originalState;
+                        break;
+                    case 'append':
+                        element.innerHTML = originalState;
+                        break;
+                    case 'style':
+                        document.head.innerHTML = originalState;
+                        break;
+                    case 'script':
+                        alert("Impossible de retirer un script une fois exécuté.");
+                        break;
+                    default:
+                        console.warn(`Type d'instruction "${type}" non pris en charge pour la restauration.`);
+                }
+                this.originalStates.delete(index);
             }
 
             applyInstruction(element, newCode, type) {
@@ -158,6 +214,7 @@
                         break;
                     case 'script':
                         const script = document.createElement('script');
+                        script.type = 'text/babel'; // Ajout de l'attribut type
                         script.textContent = newCode;
                         document.body.appendChild(script);
                         break;
@@ -172,14 +229,13 @@
                     this.popup = null;
                 }
             }
-
-            removeButton() {
-                if (this.button) {
-                    this.button.remove();
-                }
-            }
         }
 
         new AutonomousPatchButton();
     })();
 </script>
+
+<!-- Inclusion des bibliothèques React, ReactDOM et Babel -->
+<script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
